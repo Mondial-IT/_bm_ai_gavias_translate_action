@@ -1,0 +1,38 @@
+bm_ai_gavias_translate_action.settings:
+  type: config_object
+  label: 'BM AI Gavias Translate Action settings'
+  mapping:
+    field_machine_name:
+      type: string
+      label: 'Gavias JSON field name (base or configurable)'
+    key_whitelist:
+      type: sequence
+      label: 'Exact keys to translate'
+      sequence:
+        type: string
+    key_patterns:
+      type: sequence
+      label: 'Regex patterns to translate'
+      sequence:
+        type: string
+    preserve_placeholders:
+      type: boolean
+      label: 'Preserve {{ tokens }} and [shortcodes]'
+    prompts:
+      type: sequence
+      label: 'Per-language prompts'
+      sequence:
+        type: mapping
+        mapping:
+          langcode:
+            type: string
+            label: 'Language code'
+          prompt:
+            type: text
+            label: 'Prompt text'
+    provider:
+      type: string
+      label: 'AI provider machine name (optional)'
+    model:
+      type: string
+      label: 'AI model ID (optional)'

@@ -1,0 +1,6 @@
+bm_ai_gavias_translate_action.settings:
+  title: 'BM AI Gavias Translate Action'
+  description: 'Configure prompts and keys for the Gavias translate button.'
+  route_name: bm_ai_gavias_translate_action.settings
+  parent: system.admin_config_content
+  weight: 101

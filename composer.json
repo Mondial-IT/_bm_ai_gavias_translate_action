@@ -1,0 +1,13 @@
+{
+  "name": "bluemarloc/bm_ai_gavias_translate_action",
+  "description": "Node-form translate button for Gavias JSON using Drupal AI.",
+  "type": "drupal-module",
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Drupal\\bm_ai_gavias_translate_action\\": "src/"
+    }
+  }
+}

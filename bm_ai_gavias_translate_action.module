@@ -1,0 +1,109 @@
+<?php
+
+/**
+ * @file
+ * BM AI Gavias Translate Action module file.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implements hook_help().
+ */
+function bm_ai_gavias_translate_action_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'system.modules_list':
+      return t('Adds a <em>Translate Gavias</em> button on node edit forms. '
+        . 'Translates from the site default language (or the current page JSON if selected) into the current form language, '
+        . 'using per-language prompts. See <a href=":link">help topics</a> for details.',
+        [':link' => Url::fromRoute('help.help_topic', ['id' => 'bm_ai_gavias_translate_action.overview'])->toString()]
+      );
+  }
+  return NULL;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for node edit forms.
+ */
+function bm_ai_gavias_translate_action_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $entity = $form_state->getFormObject()->getEntity();
+  $field_name = \Drupal::config('bm_ai_gavias_translate_action.settings')->get('field_machine_name') ?? 'gva_pagebuilder_content';
+  if (!$entity || !$entity->hasField($field_name)) {
+    return;
+  }
+
+  // Add 'Current page' checkbox to control source JSON.
+  $form['bm_ai_gavias_translate_action_use_current'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Current page'),
+    '#description' => t('If checked, translate using the CURRENT page\'s Gavias JSON as the source (instead of the default-language version).'),
+    '#default_value' => 0,
+    '#weight' => 90,
+  ];
+
+  // Add the Translate Gavias button next to actions (does not auto-save).
+  $form['actions']['bm_ai_gavias_translate_action'] = [
+    '#type' => 'submit',
+    '#value' => t('Translate Gavias (AI)'),
+    '#submit' => ['bm_ai_gavias_translate_action_translate_submit'],
+    '#weight' => 5,
+    '#button_type' => 'secondary',
+  ];
+}
+
+/**
+ * Submit callback for the Translate Gavias button.
+ */
+function bm_ai_gavias_translate_action_translate_submit(array &$form, FormStateInterface $form_state) {
+  $entity = $form_state->getFormObject()->getEntity();
+  $config = \Drupal::config('bm_ai_gavias_translate_action.settings');
+  $field = $config->get('field_machine_name') ?? 'gva_pagebuilder_content';
+
+  if (!$entity || !$entity->hasField($field)) {
+    \Drupal::messenger()->addError(t('Gavias field not found on this content type.'));
+    return;
+  }
+
+  $default_lang = \Drupal::languageManager()->getDefaultLanguage()->getId();
+  $target_lang = $entity->language()->getId();
+
+  if ($default_lang === $target_lang && !$form_state->getValue('bm_ai_gavias_translate_action_use_current')) {
+    \Drupal::messenger()->addWarning(t('You are editing the default language. Switch to a translation or tick "Current page" to run AI translate.'));
+    return;
+  }
+
+  /** @var \Drupal\bm_ai_gavias_translate_action\Service\GaviasTranslator $svc */
+  $svc = \Drupal::service('bm_ai_gavias_translate_action.translator');
+
+  // Determine source JSON.
+  $useCurrent = (bool) $form_state->getValue('bm_ai_gavias_translate_action_use_current');
+  $source_entity = $entity->getUntranslated();
+  $source_value = $useCurrent ? ($entity->get($field)->value ?? '') : ($source_entity->get($field)->value ?? '');
+
+  if ($source_value === '') {
+    \Drupal::messenger()->addWarning(t('No Gavias content found in the selected source.'));
+    return;
+  }
+
+  // Extract keys map.
+  $map = $svc->extractMap($source_value);
+  \Drupal::messenger()->addStatus(t('AI: sending @n value(s) for translation from %src to %dst. Source: %source.', [
+    '@n' => count($map),
+    '%src' => $default_lang,
+    '%dst' => $target_lang,
+    '%source' => $useCurrent ? 'current page' : 'default language',
+  ]));
+
+  // Build prompt for target language and translate.
+  $prompt = $svc->promptFor($target_lang);
+  $translations = $svc->translateMap($map, $target_lang, $prompt);
+
+  // Apply to current translation object (does not auto-save).
+  $target_value = $entity->get($field)->value ?? $source_value;
+  $merged_json = $svc->injectMap($target_value, $translations);
+
+  $entity->set($field, $merged_json);
+  \Drupal::messenger()->addStatus(t('AI: applied @n translation(s). Review and click Save to persist.', ['@n' => count($translations)]));
+}

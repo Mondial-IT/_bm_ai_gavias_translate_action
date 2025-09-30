@@ -1,0 +1,7 @@
+services:
+  bm_ai_gavias_translate_action.translator:
+    class: Drupal\bm_ai_gavias_translate_action\Service\GaviasTranslator
+    arguments: ['@language_manager', '@config.factory', '@logger.channel.bm_ai_gavias_translate_action', '@service_container']
+  logger.channel.bm_ai_gavias_translate_action:
+    parent: logger.channel_base
+    arguments: ['bm_ai_gavias_translate_action']

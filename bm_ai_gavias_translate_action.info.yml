@@ -1,0 +1,9 @@
+name: 'BM AI Gavias Translate Action'
+type: module
+description: 'Adds a Translate button to node edit forms for Gavias JSON, translating from default language (or current page) to the current form language using per-language prompts.'
+core_version_requirement: '^10 || ^11'
+package: 'Blue Marloc'
+dependencies:
+  - drupal:language
+  - drupal:content_translation
+  - drupal:ai
